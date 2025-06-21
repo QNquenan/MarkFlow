@@ -7,6 +7,9 @@ from tkinter import filedialog, messagebox
 import piexif  # 用于处理EXIF数据
 import webbrowser  # 用于打开浏览器
 
+# 增加 Pillow 的像素限制以防止解压缩炸弹错误
+Image.MAX_IMAGE_PIXELS = None  # 禁用限制
+
 
 class EnhancedWatermarkApp(TkinterDnD.Tk):
     def __init__(self):
@@ -188,7 +191,7 @@ class EnhancedWatermarkApp(TkinterDnD.Tk):
         author_label.pack(pady=5)
 
         # 添加版本信息
-        version_label = tk.Label(about_window, text="版本：1.0.0", font=("Arial", 12), bg=bg_color)
+        version_label = tk.Label(about_window, text="版本：1.0.1", font=("Arial", 12), bg=bg_color)
         version_label.pack(pady=5)
 
         # 添加分隔线
@@ -278,7 +281,10 @@ class EnhancedWatermarkApp(TkinterDnD.Tk):
         try:
             # 创建缩略图
             img = Image.open(img_path)
-            img.thumbnail((200, 200))
+
+            # 计算缩略图尺寸，保持宽高比
+            max_size = (200, 200)
+            img.thumbnail(max_size, Image.LANCZOS)
 
             # 转换为Tkinter兼容格式
             photo = ImageTk.PhotoImage(img)
@@ -499,7 +505,7 @@ class EnhancedWatermarkApp(TkinterDnD.Tk):
 
                 # 保存图片（保留原始EXIF和尺寸）
                 composite.save(output_path, **save_params)
-                self.log(f"  保存成功: {os.path.basename(output_path)}")
+                self.log(f"  保存成功: {os.path.basename(output_path)} (保留原始尺寸和EXIF)")
                 success_count += 1
 
             except Exception as e:
