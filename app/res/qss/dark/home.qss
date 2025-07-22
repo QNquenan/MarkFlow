@@ -1,0 +1,11 @@
+AddImgBox
+
+#mainLayout {
+    background: transparent;
+}
+
+#AddImgBox {
+    border: 3px dashed rgb(36, 36, 36);
+    border-radius: 10px;
+    background-color: rgba(0, 0, 0, 0.1795);
+}
