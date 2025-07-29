@@ -35,7 +35,7 @@ class MainWindow(FluentWindow):
 
         # 设置窗口图标和标题
         self.setWindowIcon(QIcon(':/gallery/images/logo.png'))
-        self.setWindowTitle('PyQt-Fluent-Widgets')
+        self.setWindowTitle('MarkFlow')
 
         # 设置毛玻璃效果（Mica）
         # self.setMicaEffectEnabled(cfg.get(cfg.micaEnabled))

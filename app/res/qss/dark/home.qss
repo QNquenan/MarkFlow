@@ -1,11 +1,33 @@
-AddImgBox
-
-#mainLayout {
-    background: transparent;
-}
-
-#AddImgBox {
+AddImgBox {
     border: 3px dashed rgb(36, 36, 36);
     border-radius: 10px;
     background-color: rgba(0, 0, 0, 0.1795);
+}
+
+AddImgBox #mainLayout {
+    background: transparent;
+}
+
+AddImgBox #scrollWidget {
+    background: transparent;
+}
+
+
+AddImgBox #imageCard {
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 8px;
+    padding: 8px;
+}
+
+AddImgBox #nameLabel {
+    font-size: 12px;
+    margin: 10px 0;
+    font-weight: bold;
+    color: #E9EAEA;
+}
+
+AddImgBox #defaultLabel {
+    font-size: 14px; 
+    color: #aaa;
+    background: transparent;
 }

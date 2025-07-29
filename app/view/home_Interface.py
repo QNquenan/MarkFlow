@@ -2,7 +2,6 @@ from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QVBoxLayout, QLabel, QWidget
 from PyQt6.QtGui import QPainter
 import os  # 添加os模块用于路径操作
-from app.components.imgCard import ImgCard
 from app.components.addImgBox import AddImgBox  # 导入新的AddImgBox类
 
 
@@ -15,6 +14,11 @@ class HomeInterface(QWidget):
         
         # 创建主布局
         main_layout = QVBoxLayout(self)
+
+        # label = QLabel('将图片拖入框中', self)
+        # label.setStyleSheet('font-size: 15px;font-weight: bold;margin: 5px;')
+        # main_layout.addWidget(label)
+
         
         # 使用新的AddImgBox组件
         self.add_img_box = AddImgBox(self)
