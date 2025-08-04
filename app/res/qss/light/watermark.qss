@@ -1,0 +1,46 @@
+/* 水印管理界面亮色主题样式表 */
+
+WatermarkInterface {
+    background: transparent;
+}
+
+WatermarkInterface #scrollWidget {
+    background: transparent;
+}
+
+WatermarkInterface #titleLabel {
+    font-size: 24px;
+    font-weight: bold;
+    color: black;
+    background: transparent;
+}
+
+WatermarkInterface #watermarkArea {
+    background: #e5e5e5;
+    border-radius: 8px;
+}
+
+WatermarkInterface #watermarkCard {
+    background: transparent;
+    border-radius: 8px;
+    border: none;
+}
+
+WatermarkInterface #contentWidget {
+    background: #F3F3F3;
+    border-radius: 8px;
+}
+
+WatermarkInterface #contentWidget:hover  {
+    border: 3px solid #0078d4;
+}
+
+WatermarkInterface #contentWidget[selected="true"] {
+    background: #0078d4;
+}
+
+WatermarkInterface #nameLabel {
+    font-size: 12px;
+    color: #333333;
+    background: transparent;
+}

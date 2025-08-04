@@ -26,26 +26,18 @@ class MainWindow(FluentWindow):
 
     def initNav(self):
         """初始化导航栏"""
-
         self.addSubInterface(self.home_interface, FIF.HOME, '主页')
-        self.addSubInterface(self.watermark_interface, FIF.PHOTO, '水印管理')  # 添加水印管理界面，使用PHOTO图标
+        self.addSubInterface(self.watermark_interface, FIF.PHOTO, '水印管理')
         self.addSubInterface(self.settings_interface, FIF.SETTING, '设置', position='NavigationItemPosition.BOTTOM')
 
     def initWindows(self):
         """初始化窗口"""
-
-        # 设置窗口大小和最小宽度
         self.resize(960, 780)
         self.setMinimumWidth(760)
 
-        # 设置窗口图标和标题
         self.setWindowIcon(QIcon(':/gallery/images/logo.png'))
         self.setWindowTitle('MarkFlow')
 
-        # 设置毛玻璃效果（Mica）
-        # self.setMicaEffectEnabled(cfg.get(cfg.micaEnabled))
-
-        # 居中显示窗口
         desktop = QApplication.screens()[0].availableGeometry()
         w, h = desktop.width(), desktop.height()
         self.move(w // 2 - self.width() // 2, h // 2 - self.height() // 2)
@@ -78,9 +70,8 @@ def check_data_folder():
                 json.dump(default_config, f, ensure_ascii=False, indent=4)
             print("已从默认配置文件创建config.json文件")
         else:
-            # 创建空的文件
             with open(data_json_path, 'w', encoding='utf-8') as f:
-                f.write('{}')  # 写入空的JSON对象
+                f.write('{}')
             print("已创建空的config.json文件")
 
 

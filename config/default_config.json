@@ -1,4 +1,14 @@
 {
-  "Out_path": "C:\\Users\\Administrator\\Downloads\\MarkFlow",
-  "Theme_mode": "Auto"
+    "Out_path": "C:\\Users\\Administrator\\Downloads\\MarkFlow",
+    "Theme_mode": "Auto",
+    "Use_logo": "",
+    "Logo_size": {
+        "width": 1000,
+        "height": 250
+    },
+    "Logo_bottom": 0,
+    "Logo_xy": {
+        "x": 0,
+        "y": 0
+    }
 }

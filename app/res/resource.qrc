@@ -1,0 +1,12 @@
+<RCC>
+    <qresource prefix="/">
+        <!-- 图片资源 -->
+        <file>img/1.jpg</file>
+        <file>img/2.jpg</file>
+        <file>img/3.jpg</file>
+        
+        <!-- 样式表资源 -->
+        <file>qss/dark/home.qss</file>
+        <file>qss/dark/settings.qss</file>
+    </qresource>
+</RCC>
