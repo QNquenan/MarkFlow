@@ -2,7 +2,7 @@ import sys
 import os  # 添加os模块用于文件路径检查
 import json
 
-from PyQt6.QtCore import QSize, QFile, QTextStream
+from PyQt6.QtCore import QSize, QFile, QTextStream, QEventLoop, QTimer
 from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import QApplication, QMessageBox  # 添加QMessageBox用于提示
 from qfluentwidgets import FluentIcon as FIF, FluentWindow, SplashScreen, setTheme, Theme
@@ -15,6 +15,15 @@ class MainWindow(FluentWindow):
     def __init__(self):
         super().__init__()
 
+        # 设置窗口图标
+        self.setWindowIcon(QIcon('app/res/img/logo.png'))
+        self.setWindowTitle('MarkFlow')
+
+        # 创建启动页面
+        self.splashScreen = SplashScreen(self.windowIcon(), self)
+        self.splashScreen.setIconSize(QSize(106, 106))
+        self.splashScreen.raise_()
+
         # 导入界面
         self.home_interface = HomeInterface()
         self.settings_interface = SettingsInterface()
@@ -23,6 +32,15 @@ class MainWindow(FluentWindow):
         # 初始化
         self.initNav()
         self.initWindows()
+        
+        # 在创建其他子页面前先显示主界面
+        self.show()
+        
+        # 创建子界面
+        self.createSubInterface()
+        
+        # 隐藏启动页面
+        self.splashScreen.finish()
 
     def initNav(self):
         """初始化导航栏"""
@@ -35,14 +53,18 @@ class MainWindow(FluentWindow):
         self.resize(960, 780)
         self.setMinimumWidth(760)
 
-        self.setWindowIcon(QIcon(':/gallery/images/logo.png'))
-        self.setWindowTitle('MarkFlow')
-
         desktop = QApplication.screens()[0].availableGeometry()
         w, h = desktop.width(), desktop.height()
         self.move(w // 2 - self.width() // 2, h // 2 - self.height() // 2)
-        self.show()
         QApplication.processEvents()
+        
+    def createSubInterface(self):
+        """创建子界面"""
+        # 使用事件循环模拟加载过程
+        loop = QEventLoop(self)
+        QTimer.singleShot(1500, loop.quit)
+        loop.exec()
+
 
 def check_data_folder():
     """检查data文件夹和config.json文件是否存在"""

@@ -35,3 +35,13 @@ AddImgBox #defaultLabel {
 HomeInterface #mainConfigLayout {
     margin: 200px;
 }
+
+HomeInterface QLabel#widthLabel,
+HomeInterface QLabel#heightLabel,
+HomeInterface QLabel#bottomMarginLabel,
+HomeInterface QLabel#verticalAlignLabel,
+HomeInterface QLabel#horizontalAlignLabel,
+HomeInterface QLabel#tip {
+    color: #FFFFFF;
+    font-weight: 500;
+}

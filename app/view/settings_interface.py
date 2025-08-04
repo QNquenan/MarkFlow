@@ -11,7 +11,8 @@ from PyQt6.QtWidgets import QVBoxLayout, QLabel, QWidget, QFileDialog, QApplicat
 from qfluentwidgets import FluentIcon as FIF
 from qfluentwidgets import (SettingCardGroup, PushSettingCard, OptionsSettingCard, HyperlinkCard,
                             PrimaryPushSettingCard, Theme, setTheme)
-from qfluentwidgets.common.config import ConfigItem, OptionsConfigItem, OptionsValidator, qconfig, QConfig
+from qfluentwidgets import (ScrollArea, qconfig, InfoBar, InfoBarPosition)  # 添加ScrollArea
+from qfluentwidgets.common.config import ConfigItem, OptionsConfigItem, OptionsValidator, QConfig
 
 class MarkFlowConfig(QConfig):
     """ MarkFlow configuration """
@@ -186,11 +187,11 @@ class SettingsInterface(QWidget):
         self.about_group = SettingCardGroup("关于", self)
         
         self.link_card = HyperlinkCard(
-            'https://github.com/quenandev/markflow',
-            '打开官方文档',
-            FIF.LINK,
-            '官方文档',
-            '查看最新官方文档和使用说明',
+            'https://github.com/QNquenan/MarkFlow',
+            '打开Github',
+            FIF.GITHUB,
+            'Github仓库',
+            '查看最新的版本！',
             self.about_group
         )
         
@@ -202,8 +203,20 @@ class SettingsInterface(QWidget):
             self.about_group
         )
         
+        # 连接检查更新按钮的点击信号
+        self.about_card.clicked.connect(self.check_updates)
+        
         self.about_group.addSettingCard(self.link_card)
         self.about_group.addSettingCard(self.about_card)
+        
+    def check_updates(self):
+        """检查更新按钮的点击事件处理"""
+        InfoBar.info(
+            title="提示",
+            content="自己去Github瞅一眼就好啦🫡",
+            parent=self,
+            duration=3000
+        )
         
     def on_theme_changed(self, value):
         """主题更改时保存配置到文件并设置应用程序主题"""

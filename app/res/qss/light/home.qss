@@ -31,3 +31,13 @@ AddImgBox #defaultLabel {
     color: #666;
     background: transparent;
 }
+
+HomeInterface QLabel#widthLabel,
+HomeInterface QLabel#heightLabel,
+HomeInterface QLabel#bottomMarginLabel,
+HomeInterface QLabel#verticalAlignLabel,
+HomeInterface QLabel#horizontalAlignLabel,
+HomeInterface QLabel#tip {
+    color: #000000;
+    font-weight: 500;
+}

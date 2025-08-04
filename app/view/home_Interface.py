@@ -223,7 +223,9 @@ class HomeInterface(QWidget):
         self.width_input = LineEdit()
         self.width_input.setPlaceholderText("输入宽度")
         width_layout = QHBoxLayout()
-        width_layout.addWidget(QLabel("宽度:"))
+        width_label = QLabel("宽度（px）:")
+        width_label.setObjectName("widthLabel")
+        width_layout.addWidget(width_label)
         width_layout.addWidget(self.width_input)
         input_layout.addLayout(width_layout)
 
@@ -231,7 +233,9 @@ class HomeInterface(QWidget):
         self.height_input = LineEdit()
         self.height_input.setPlaceholderText("输入高度")
         height_layout = QHBoxLayout()
-        height_layout.addWidget(QLabel("高度:"))
+        height_label = QLabel("高度（px）:")
+        height_label.setObjectName("heightLabel")
+        height_layout.addWidget(height_label)
         height_layout.addWidget(self.height_input)
         input_layout.addLayout(height_layout)
 
@@ -239,9 +243,15 @@ class HomeInterface(QWidget):
         self.bottom_margin_input = LineEdit()
         self.bottom_margin_input.setPlaceholderText("输入距离底部距离")
         bottom_margin_layout = QHBoxLayout()
-        bottom_margin_layout.addWidget(QLabel("底部距离:"))
+        bottom_margin_label = QLabel("底部距离（px）:")
+        bottom_margin_label.setObjectName("bottomMarginLabel")
+        bottom_margin_layout.addWidget(bottom_margin_label)
         bottom_margin_layout.addWidget(self.bottom_margin_input)
         input_layout.addLayout(bottom_margin_layout)
+
+        self.tip = QLabel("Tips: 不要忘记点击保存配置口牙")
+        self.tip.setObjectName("tip")
+        input_layout.addWidget(self.tip)
         
         input_layout.addStretch()
 
@@ -257,7 +267,9 @@ class HomeInterface(QWidget):
         self.vertical_align_combo.setCurrentText('居中')
         vertical_layout = QHBoxLayout()
         vertical_layout.addStretch()  # 添加左侧弹性空间
-        vertical_layout.addWidget(QLabel("垂直对齐:"))
+        vertical_align_label = QLabel("垂直对齐:")
+        vertical_align_label.setObjectName("verticalAlignLabel")
+        vertical_layout.addWidget(vertical_align_label)
         vertical_layout.addWidget(self.vertical_align_combo)
         vertical_layout.addStretch()  # 添加右侧弹性空间
         combo_layout.addLayout(vertical_layout)
@@ -268,7 +280,9 @@ class HomeInterface(QWidget):
         self.horizontal_align_combo.setCurrentText('居中')
         horizontal_layout = QHBoxLayout()
         horizontal_layout.addStretch()  # 添加左侧弹性空间
-        horizontal_layout.addWidget(QLabel("水平对齐:"))
+        horizontal_align_label = QLabel("水平对齐:")
+        horizontal_align_label.setObjectName("horizontalAlignLabel")
+        horizontal_layout.addWidget(horizontal_align_label)
         horizontal_layout.addWidget(self.horizontal_align_combo)
         horizontal_layout.addStretch()  # 添加右侧弹性空间
         combo_layout.addLayout(horizontal_layout)
