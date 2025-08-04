@@ -1,0 +1,4 @@
+SettingsInterface #settingLabel {
+    font-size: 32px;
+    font-weight: bold;
+}
