@@ -205,7 +205,9 @@ class WatermarkProcessor(QObject):
         elif y_pos == 1:  # 靠上
             logo_y = 0
         elif y_pos == 2:  # 靠下
-            logo_y = image_height - logo_height - bottom_margin  # 考到底部边距
+            # 使用百分比计算底部边距
+            bottom_margin_px = int((bottom_margin / 100.0) * image_height) if bottom_margin else 0
+            logo_y = image_height - logo_height - bottom_margin_px  # 考到底部边距
         else:
             logo_y = 0
             
@@ -418,9 +420,9 @@ class HomeInterface(QWidget):
 
         # 距离底部距离输入框
         self.bottom_margin_input = LineEdit()
-        self.bottom_margin_input.setPlaceholderText("输入距离底部距离")
+        self.bottom_margin_input.setPlaceholderText("输入距离底部距离(%)")
         bottom_margin_layout = QHBoxLayout()
-        bottom_margin_label = QLabel("底部距离（px）:")
+        bottom_margin_label = QLabel("底部距离（%）:")
         bottom_margin_label.setObjectName("bottomMarginLabel")
         bottom_margin_layout.addWidget(bottom_margin_label)
         bottom_margin_layout.addWidget(self.bottom_margin_input)
@@ -512,7 +514,11 @@ class HomeInterface(QWidget):
 
                 # 读取Logo_bottom并设置到底部距离输入框
                 bottom_margin = config.get('Logo_bottom', '')
-                self.bottom_margin_input.setText(str(bottom_margin))
+                # 格式化百分比显示
+                if isinstance(bottom_margin, (int, float)) and bottom_margin != '':
+                    self.bottom_margin_input.setText(str(bottom_margin))
+                else:
+                    self.bottom_margin_input.setText("0")
 
                 # 读取Logo_xy并设置下拉框选项
                 logo_xy = config.get('Logo_xy', {})
@@ -560,11 +566,18 @@ class HomeInterface(QWidget):
             try:
                 width = int(self.width_input.text()) if self.width_input.text() else 0
                 height = int(self.height_input.text()) if self.height_input.text() else 0
-                bottom_margin = int(self.bottom_margin_input.text()) if self.bottom_margin_input.text() else 0
+                # 将百分比字符串转换为浮点数
+                bottom_margin_text = self.bottom_margin_input.text()
+                if bottom_margin_text:
+                    # 移除可能的百分号
+                    bottom_margin_text = bottom_margin_text.rstrip('%')
+                    bottom_margin = float(bottom_margin_text) if bottom_margin_text else 0.0
+                else:
+                    bottom_margin = 0.0
             except ValueError:
                 width = 0
                 height = 0
-                bottom_margin = 0
+                bottom_margin = 0.0
 
             # 获取下拉框的值并转换为数字
             # 垂直对齐方式: 居中-0, 靠上-1, 靠下-2
