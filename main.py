@@ -2,7 +2,7 @@ import sys
 import os  # 添加os模块用于文件路径检查
 import json
 
-from PyQt6.QtCore import QSize, QFile, QTextStream, QEventLoop, QTimer
+from PyQt6.QtCore import Qt, QSize, QFile, QTextStream, QEventLoop, QTimer
 from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import QApplication, QMessageBox  # 添加QMessageBox用于提示
 from qfluentwidgets import FluentIcon as FIF, FluentWindow, SplashScreen, setTheme, Theme
@@ -10,13 +10,16 @@ from qfluentwidgets.common.config import qconfig  # 导入qconfig用于获取主
 from app.view.home_Interface import HomeInterface
 from app.view.settings_interface import SettingsInterface, markflowConfig, load_theme_styles  # 导入配置类和load_theme_styles函数
 from app.view.watermark_interface import WatermarkInterface  # 导入水印管理界面
+# 导入资源文件
+import app.components.resources_rc
+
 
 class MainWindow(FluentWindow):
     def __init__(self):
         super().__init__()
 
-        # 设置窗口图标
-        self.setWindowIcon(QIcon('app/res/img/logo.png'))
+        # 设置窗口图标，使用资源路径
+        self.setWindowIcon(QIcon(':/app/res/favicon.ico'))
         self.setWindowTitle('MarkFlow')
 
         # 创建启动页面
@@ -51,7 +54,7 @@ class MainWindow(FluentWindow):
     def initWindows(self):
         """初始化窗口"""
         self.resize(960, 780)
-        self.setMinimumWidth(760)
+        self.setMinimumSize(800, 700)
 
         desktop = QApplication.screens()[0].availableGeometry()
         w, h = desktop.width(), desktop.height()
@@ -64,6 +67,42 @@ class MainWindow(FluentWindow):
         loop = QEventLoop(self)
         QTimer.singleShot(1500, loop.quit)
         loop.exec()
+
+
+def load_global_styles(app):
+    """加载全局样式表"""
+    try:
+        # 获取当前主题
+        theme_mode = qconfig.get(markflowConfig.themeMode)
+        theme_dir = "light" if theme_mode == Theme.LIGHT else "dark"
+        
+        # 定义需要加载的样式表资源路径
+        qss_files = [
+            f":/app/res/qss/{theme_dir}/home.qss",
+            f":/app/res/qss/{theme_dir}/settings.qss",
+            f":/app/res/qss/{theme_dir}/watermark.qss"
+        ]
+        
+        all_styles = ""
+        
+        # 读取并合并所有样式表
+        for qss_path in qss_files:
+            # 使用QFile读取资源文件
+            file = QFile(qss_path)
+            if file.open(QFile.OpenModeFlag.ReadOnly | QFile.OpenModeFlag.Text):
+                stream = QTextStream(file)
+                style = stream.readAll()
+                all_styles += style + "\n"
+                file.close()
+                print(f"成功加载样式表: {qss_path}")
+            else:
+                print(f"无法加载样式表: {qss_path}")
+        
+        # 应用样式表到整个应用程序
+        app.setStyleSheet(all_styles)
+        
+    except Exception as e:
+        print(f"加载全局样式表时出错: {e}")
 
 
 def check_data_folder():
@@ -97,19 +136,25 @@ def check_data_folder():
             print("已创建空的config.json文件")
 
 
-if __name__ == "__main__":
-    # 检查data文件夹和data.json文件
-    check_data_folder()
-    
+if __name__ == '__main__':
+    # 启用高分屏缩放
+    QApplication.setHighDpiScaleFactorRoundingPolicy(
+        Qt.HighDpiScaleFactorRoundingPolicy.PassThrough)
+    # QApplication.setAttribute(Qt.AA_UseHighDpiPixmaps)
+
     app = QApplication(sys.argv)
     
-    # 设置应用程序主题
-    theme_mode = qconfig.get(markflowConfig.themeMode)
-    setTheme(theme_mode)
+    # 检查并创建必要的数据文件夹
+    check_data_folder()
     
-    # 根据主题加载样式表
-    load_theme_styles(app, theme_mode)
+    # 设置主题
+    setTheme(qconfig.get(markflowConfig.themeMode))
     
-    window = MainWindow()
-    window.show()
-    sys.exit(app.exec())
+    # 加载全局样式表
+    load_global_styles(app)
+    
+    # 创建主窗口
+    w = MainWindow()
+    w.show()
+    
+    app.exec()

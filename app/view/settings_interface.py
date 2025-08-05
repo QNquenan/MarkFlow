@@ -6,7 +6,7 @@ import os
 import json
 from pathlib import Path
 
-from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtCore import Qt, pyqtSignal, QFile, QTextStream
 from PyQt6.QtWidgets import QVBoxLayout, QLabel, QWidget, QFileDialog, QApplication
 from qfluentwidgets import FluentIcon as FIF
 from qfluentwidgets import (SettingCardGroup, PushSettingCard, OptionsSettingCard, HyperlinkCard,
@@ -85,21 +85,26 @@ def load_theme_styles(app, theme_mode):
     try:
         theme_dir = "light" if theme_mode == Theme.LIGHT else "dark"
         
+        # 使用资源路径
         qss_files = [
-            f"app/res/qss/{theme_dir}/home.qss",
-            f"app/res/qss/{theme_dir}/settings.qss",
-            f"app/res/qss/{theme_dir}/watermark.qss"
+            f":/app/res/qss/{theme_dir}/home.qss",
+            f":/app/res/qss/{theme_dir}/settings.qss",
+            f":/app/res/qss/{theme_dir}/watermark.qss"
         ]
         
         all_styles = ""
         
         for qss_path in qss_files:
-            if os.path.exists(qss_path):
-                with open(qss_path, "r", encoding="utf-8") as f:
-                    style = f.read()
-                    all_styles += style + "\n"
-
+            # 使用QFile读取资源文件
+            file = QFile(qss_path)
+            if file.open(QFile.OpenModeFlag.ReadOnly | QFile.OpenModeFlag.Text):
+                stream = QTextStream(file)
+                style = stream.readAll()
+                all_styles += style + "\n"
+                file.close()
                 print(f"{os.path.basename(qss_path)}样式表导入成功")
+            else:
+                print(f"无法加载样式表: {qss_path}")
         
         app.setStyleSheet(all_styles)
         
