@@ -1,0 +1,12 @@
+<RCC>
+    <qresource prefix="/">
+        <file>app/res/img/logo.png</file>
+        <file>app/res/qss/dark/home.qss</file>
+        <file>app/res/qss/dark/settings.qss</file>
+        <file>app/res/qss/dark/watermark.qss</file>
+        <file>app/res/qss/light/home.qss</file>
+        <file>app/res/qss/light/settings.qss</file>
+        <file>app/res/qss/light/watermark.qss</file>
+        <file>app/res/favicon.ico</file>
+    </qresource>
+</RCC>
