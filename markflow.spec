@@ -9,7 +9,7 @@ a = Analysis(
     datas=[
         ('app/res', 'app/res'),
         ('config', 'config'),
-        ('data', 'data'),
+        # 排除data目录，它将在运行时自动创建
     ],
     hiddenimports=[
         'app.view.home_Interface',
@@ -66,4 +66,15 @@ exe = EXE(
     codesign_identity=None,
     entitlements_file=None,
     icon='app/res/favicon.ico'
+)
+
+coll = COLLECT(
+    exe,
+    a.binaries,
+    a.zipfiles,
+    a.datas,
+    strip=False,
+    upx=True,
+    upx_exclude=[],
+    name='MarkFlow'
 )
