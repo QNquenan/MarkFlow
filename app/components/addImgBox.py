@@ -3,12 +3,14 @@ from PyQt6.QtGui import QPixmap
 from PyQt6.QtWidgets import QScrollArea, QWidget, QLabel, QVBoxLayout, QApplication, QSizePolicy
 from qfluentwidgets import FlowLayout, RoundMenu, Action, FluentIcon
 import os
+import re
 
 class ProcessedImageData:
     """处理后的图片数据"""
-    def __init__(self, image_path, filename, pixmap=None, error=None):
+    def __init__(self, image_path, filename, display_filename=None, pixmap=None, error=None):
         self.image_path = image_path
-        self.filename = filename
+        self.filename = filename  # 原始文件名
+        self.display_filename = display_filename or filename  # 显示用的文件名
         self.pixmap = pixmap
         self.error = error
 
@@ -22,17 +24,20 @@ class ImageProcessor(QObject):
         super().__init__()
         self.file_queue = []
 
-    def process_images(self, file_paths):
-        """处理图片文件列表"""
-        self.file_queue.extend(file_paths)
+    def process_images(self, file_map):
+        """处理图片文件列表
+        Args:
+            file_map: dict, {file_path: display_filename} 文件路径和显示名称的映射
+        """
+        self.file_queue = list(file_map.items())
         self._process_next()
 
     def _process_next(self):
         """处理队列中的下一个文件"""
         if self.file_queue:
-            file_path = self.file_queue.pop(0)
+            file_path, display_filename = self.file_queue.pop(0)
             if os.path.isfile(file_path):
-                filename = os.path.basename(file_path)
+                filename = os.path.basename(file_path)  # 原始文件名
                 
                 try:
                     pixmap = QPixmap(file_path)
@@ -42,11 +47,11 @@ class ImageProcessor(QObject):
                             Qt.AspectRatioMode.KeepAspectRatio, 
                             Qt.TransformationMode.SmoothTransformation
                         )
-                        processed_data = ProcessedImageData(file_path, filename, scaled_pixmap)
+                        processed_data = ProcessedImageData(file_path, filename, display_filename, scaled_pixmap)
                     else:
-                        processed_data = ProcessedImageData(file_path, filename, error="图片加载失败")
+                        processed_data = ProcessedImageData(file_path, filename, display_filename, error="图片加载失败")
                 except Exception as e:
-                    processed_data = ProcessedImageData(file_path, filename, error=f"处理图片时出错: {str(e)}")
+                    processed_data = ProcessedImageData(file_path, filename, display_filename, error=f"处理图片时出错: {str(e)}")
                 
                 self.finished.emit(processed_data)
             else:
@@ -65,6 +70,7 @@ class AddImgBox(QScrollArea):
         self.setMinimumHeight(300)
         
         self.added_images = set()
+        self.added_filenames = {}  # 用于跟踪已添加的文件名
         
         self.scroll_widget = QWidget()
         self.scroll_widget.setObjectName('scrollWidget')
@@ -122,19 +128,56 @@ class AddImgBox(QScrollArea):
                 self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
                 self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
             
-            file_paths = []
+            file_map = {}  # {file_path: display_filename}
             for url in mime_data.urls():
                 file_path = url.toLocalFile()
                 if file_path not in self.added_images:
                     self.added_images.add(file_path)
-                    file_paths.append(file_path)
+                    
+                    # 检查文件名是否已存在，如果存在则重命名显示名称
+                    filename = os.path.basename(file_path)
+                    display_filename = filename
+                    if filename in self.added_filenames:
+                        # 文件名已存在，需要重命名显示名称
+                        display_filename = self._rename_duplicate_file(filename)
+                    
+                    # 记录文件名（用于检查重复）
+                    self.added_filenames[display_filename] = file_path
+                    file_map[file_path] = display_filename
+                else:
+                    # 文件已存在，跳过处理
+                    continue
             
-            if file_paths:
-                self.image_processor.process_images(file_paths)
+            if file_map:
+                self.image_processor.process_images(file_map)
             
             event.acceptProposedAction()
         else:
             event.ignore()
+
+    def _rename_duplicate_file(self, filename):
+        """
+        重命名重复的文件显示名称
+        
+        Args:
+            filename (str): 原始文件名
+            
+        Returns:
+            str: 重命名后的显示文件名
+        """
+        name, ext = os.path.splitext(filename)
+        
+        # 查找已存在的同名文件数量
+        counter = 1
+        new_filename = f"{name}({counter}){ext}"
+        
+        # 检查显示名称是否已存在
+        existing_display_names = set(self.added_filenames.keys())
+        while new_filename in existing_display_names:
+            counter += 1
+            new_filename = f"{name}({counter}){ext}"
+            
+        return new_filename
 
     def handleImageError(self, error_msg):
         """处理图片处理错误"""
@@ -163,7 +206,9 @@ class AddImgBox(QScrollArea):
         
         card.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         card.customContextMenuRequested.connect(lambda pos: self.showCardContextMenu(card, pos))
-        card.image_path = processed_data.image_path
+        card.image_path = processed_data.image_path  # 原始路径
+        card.display_filename = processed_data.display_filename  # 显示用的文件名
+        card.original_filename = processed_data.filename  # 原始文件名
 
         layout = QVBoxLayout(card)
         layout.setSpacing(5)
@@ -180,7 +225,8 @@ class AddImgBox(QScrollArea):
             img_label.setPixmap(processed_data.pixmap)
             img_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         
-        name_label = QLabel(processed_data.filename)
+        # 使用显示名称而不是原始文件名
+        name_label = QLabel(processed_data.display_filename)
         name_label.setObjectName('nameLabel')
         name_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         
@@ -205,6 +251,9 @@ class AddImgBox(QScrollArea):
         self.main_layout.removeWidget(card)
         if hasattr(card, 'image_path'):
             self.added_images.discard(card.image_path)
+            # 同时从文件名字典中移除显示名称
+            if hasattr(card, 'display_filename'):
+                self.added_filenames.pop(card.display_filename, None)
         card.deleteLater()
         
         self.main_layout.update()

@@ -10,5 +10,6 @@
     "Logo_xy": {
         "x": 0,
         "y": 0
-    }
+    },
+    "Auto_invert": false
 }

@@ -94,33 +94,51 @@ def load_global_styles(app):
                 style = stream.readAll()
                 all_styles += style + "\n"
                 file.close()
-                print(f"成功加载样式表: {qss_path}")
-            else:
-                print(f"无法加载样式表: {qss_path}")
         
         # 应用样式表到整个应用程序
         app.setStyleSheet(all_styles)
         
     except Exception as e:
-        print(f"加载全局样式表时出错: {e}")
+        pass  # 静默处理样式表加载错误
+
+
+def get_application_path():
+    """获取应用程序所在目录的正确路径"""
+    if getattr(sys, 'frozen', False):
+        # 如果程序是打包后的exe文件
+        application_path = os.path.dirname(sys.executable)
+    elif '__file__' in globals():
+        # 如果是直接运行的Python脚本
+        application_path = os.path.dirname(os.path.abspath(__file__))
+    else:
+        # 其他情况使用当前工作目录
+        application_path = os.getcwd()
+    return application_path
 
 
 def check_data_folder():
     """检查data文件夹和config.json文件是否存在"""
     # 获取程序所在目录
-    current_dir = os.path.dirname(os.path.abspath(__file__)) if '__file__' in globals() else os.getcwd()
+    current_dir = get_application_path()
     
     # 检查data文件夹是否存在
     data_folder_path = os.path.join(current_dir, 'data')
     if not os.path.exists(data_folder_path):
         # 创建data文件夹
         os.makedirs(data_folder_path)
-        print("已创建data文件夹")
     
     # 检查文件是否存在
     data_json_path = os.path.join(data_folder_path, 'config.json')
     if not os.path.exists(data_json_path):
-        default_config_path = os.path.join(current_dir, 'config', 'default_config.json')
+        # 查找默认配置文件的路径
+        # 在打包后的程序中，config目录在_internal目录中
+        if getattr(sys, 'frozen', False):
+            # 打包后的程序，config目录在_internal中
+            default_config_path = os.path.join(current_dir, '_internal', 'config', 'default_config.json')
+        else:
+            # 直接运行的Python脚本
+            default_config_path = os.path.join(current_dir, 'config', 'default_config.json')
+            
         if os.path.exists(default_config_path):
             # 从默认配置文件读取内容
             with open(default_config_path, 'r', encoding='utf-8') as f:
@@ -129,11 +147,9 @@ def check_data_folder():
             # 写入
             with open(data_json_path, 'w', encoding='utf-8') as f:
                 json.dump(default_config, f, ensure_ascii=False, indent=4)
-            print("已从默认配置文件创建config.json文件")
         else:
             with open(data_json_path, 'w', encoding='utf-8') as f:
                 f.write('{}')
-            print("已创建空的config.json文件")
 
 
 if __name__ == '__main__':

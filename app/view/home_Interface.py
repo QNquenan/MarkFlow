@@ -1,10 +1,11 @@
 import json
 import os
+import sys
 
-from PIL import Image
+from PIL import Image, ImageStat
 from PyQt6.QtCore import Qt, QObject, QThread, pyqtSignal
 from PyQt6.QtWidgets import QVBoxLayout, QLabel, QWidget, QHBoxLayout, QSizePolicy
-from qfluentwidgets import LineEdit, ComboBox, PushButton, PrimaryPushButton, MessageBox, InfoBar
+from qfluentwidgets import LineEdit, ComboBox, PushButton, PrimaryPushButton, MessageBox, InfoBar, StateToolTip
 
 from app.components.addImgBox import AddImgBox
 
@@ -18,13 +19,39 @@ class WatermarkProcessor(QObject):
 
     def __init__(self):
         super().__init__()
-        self.image_paths = []
+        self.image_paths_with_names = []  # 存储 (image_path, display_name) 元组列表
         self.config = {}
         self._is_running = False
 
-    def set_data(self, image_paths, config):
+    @staticmethod
+    def get_application_path():
+        """获取应用程序所在目录的正确路径"""
+        if getattr(sys, 'frozen', False):
+            # 如果程序是打包后的exe文件
+            application_path = os.path.dirname(sys.executable)
+            # 检查data目录是否在可执行文件同级目录
+            data_path = os.path.join(application_path, 'data')
+            if not os.path.exists(data_path):
+                # 如果不存在，则尝试使用_internal同级目录
+                internal_path = os.path.join(application_path, '_internal')
+                if os.path.exists(internal_path):
+                    application_path = internal_path
+        else:
+            # 如果是直接运行的Python脚本
+            application_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        return application_path
+
+    def set_data(self, image_paths_with_names, config):
         """设置处理数据"""
-        self.image_paths = image_paths
+        # 兼容旧的数据格式（仅包含图片路径的列表）
+        if isinstance(image_paths_with_names, set) or (isinstance(image_paths_with_names, list) and 
+                                                      image_paths_with_names and 
+                                                      isinstance(image_paths_with_names[0], str)):
+            # 转换为新的格式 [(image_path, display_name), ...]
+            self.image_paths_with_names = [(path, os.path.basename(path)) for path in image_paths_with_names]
+        else:
+            # 新的格式 [(image_path, display_name), ...]
+            self.image_paths_with_names = image_paths_with_names
         self.config = config
 
     def process_images(self):
@@ -34,12 +61,13 @@ class WatermarkProcessor(QObject):
             
         self._is_running = True
         try:
-            total_count = len(self.image_paths)
+            total_count = len(self.image_paths_with_names)
             use_logo = self.config.get('Use_logo', '')
             out_path = self.config.get('Out_path', '')
             logo_size = self.config.get('Logo_size', {})
             logo_bottom = self.config.get('Logo_bottom', 0)  # 获取底部距离配置
             logo_xy = self.config.get('Logo_xy', {})
+            auto_invert = self.config.get('Auto_invert', False)  # 获取自动反色配置
             
             # 检查必要配置
             if not use_logo:
@@ -58,8 +86,15 @@ class WatermarkProcessor(QObject):
             
             # 加载水印图片
             # 修复路径处理问题
-            base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            base_dir = WatermarkProcessor.get_application_path()
             logo_path = os.path.join(base_dir, 'data', 'watermarks', use_logo)
+            
+            # 如果在打包环境中且data目录不存在，则尝试_internal目录
+            if not os.path.exists(logo_path) and getattr(sys, 'frozen', False):
+                # 检查_internal目录中的路径
+                internal_logo_path = os.path.join(base_dir, '_internal', 'data', 'watermarks', use_logo)
+                if os.path.exists(internal_logo_path):
+                    logo_path = internal_logo_path
             
             if not os.path.exists(logo_path):
                 self.error.emit(f"水印图片不存在: {logo_path}")
@@ -78,7 +113,7 @@ class WatermarkProcessor(QObject):
             y_pos = logo_xy.get('y', 0)  # 0:居中, 1:靠上, 2:靠下
             
             # 处理每张图片
-            for i, image_path in enumerate(self.image_paths):
+            for i, (image_path, display_name) in enumerate(self.image_paths_with_names):
                 # 发送进度信号
                 self.progress.emit(i + 1, total_count)
                 
@@ -92,6 +127,10 @@ class WatermarkProcessor(QObject):
                     # 计算水印位置
                     logo_x, logo_y = self._calculate_logo_position_pil(original_image, logo_image, x_pos, y_pos, logo_bottom)
                     
+                    # 如果启用了自动反色功能，则根据背景明暗调整水印颜色
+                    if auto_invert:
+                        logo_image = self._adjust_watermark_color(original_image, logo_image, logo_x, logo_y)
+                    
                     # 粘贴水印到原始图片
                     # 如果logo_image有alpha通道，则使用alpha通道作为mask
                     if logo_image.mode == 'RGBA':
@@ -99,9 +138,8 @@ class WatermarkProcessor(QObject):
                     else:
                         original_image.paste(logo_image, (logo_x, logo_y))
                     
-                    # 保存图片
-                    filename = os.path.basename(image_path)
-                    name, ext = os.path.splitext(filename)
+                    # 保存图片，使用显示名称而不是原始文件名
+                    name, ext = os.path.splitext(display_name)
                     output_path = os.path.join(out_path, f"{name}_watermarked{ext}")
                     
                     # 保存最终图片，保留EXIF信息，使用最高质量导出
@@ -172,6 +210,145 @@ class WatermarkProcessor(QObject):
             logo_y = 0
             
         return logo_x, logo_y
+    
+    def _adjust_watermark_color(self, background_image, watermark_image, logo_x, logo_y):
+        """
+        根据背景明暗度调整水印颜色
+        确保水印在各种背景下都有良好的可见性
+        """
+        try:
+            # 获取水印图像的边界框
+            watermark_width, watermark_height = watermark_image.size
+            
+            # 确保坐标不越界
+            logo_x = max(0, logo_x)
+            logo_y = max(0, logo_y)
+            end_x = min(background_image.size[0], logo_x + watermark_width)
+            end_y = min(background_image.size[1], logo_y + watermark_height)
+            
+            # 如果水印完全在图像外部，则直接返回原水印
+            if logo_x >= background_image.size[0] or logo_y >= background_image.size[1] or end_x <= 0 or end_y <= 0:
+                return watermark_image
+            
+            # 裁剪出水印将要放置的背景区域
+            bg_region = background_image.crop((logo_x, logo_y, end_x, end_y))
+            
+            # 计算背景区域的平均亮度
+            # 如果图像是RGBA或RGB，转换为灰度图计算亮度
+            if bg_region.mode in ('RGBA', 'RGB'):
+                gray_bg = bg_region.convert('L')
+            else:
+                gray_bg = bg_region
+            
+            # 计算平均亮度 (0-255)
+            stat = ImageStat.Stat(gray_bg)
+            avg_brightness = stat.mean[0] if isinstance(stat.mean, (list, tuple)) else stat.mean
+            
+            # 判断水印的主要颜色倾向
+            is_light_watermark = self._is_light_image(watermark_image)
+            
+            # 特殊处理：如果背景非常亮（如纯白）且水印是浅色（如白色）
+            # 则必须将水印转为深色以确保可见性
+            if avg_brightness >= 200 and is_light_watermark:
+                return self._invert_watermark_color(watermark_image, 'black')
+            
+            # 根据背景亮度和水印颜色决定最终水印颜色
+            # 目标是确保水印与背景有足够的对比度
+            if avg_brightness < 85:  # 背景很暗
+                # 在暗背景下，使用浅色水印提高可见性
+                if not is_light_watermark:  # 如果水印是深色
+                    return self._invert_watermark_color(watermark_image, 'white')  # 转为浅色
+                else:
+                    return watermark_image  # 保持浅色
+            elif avg_brightness >= 170:  # 背景很亮
+                # 在亮背景下，使用深色水印提高可见性
+                if is_light_watermark:  # 如果水印是浅色
+                    return self._invert_watermark_color(watermark_image, 'black')  # 转为深色
+                else:
+                    return watermark_image  # 保持深色
+            else:  # 背景是中等亮度
+                # 对于中等亮度背景，基于水印颜色做轻微调整
+                if is_light_watermark and avg_brightness >= 128:
+                    # 浅色水印在偏亮的中等亮度背景下，变为深色
+                    return self._invert_watermark_color(watermark_image, 'black')
+                elif not is_light_watermark and avg_brightness < 128:
+                    # 深色水印在偏暗的中等亮度背景下，变为浅色
+                    return self._invert_watermark_color(watermark_image, 'white')
+                else:
+                    # 其他情况保持原样
+                    return watermark_image
+            
+        except Exception as e:
+            print(f"调整水印颜色时出错: {e}")
+            # 出错时返回原始水印
+            return watermark_image
+    
+    def _is_light_image(self, image):
+        """
+        判断图像是否主要是浅色
+        :param image: PIL图像对象
+        :return: 如果主要是浅色返回True，否则返回False
+        """
+        try:
+            # 转换为灰度图进行分析
+            if image.mode in ('RGBA', 'RGB'):
+                gray_image = image.convert('L')
+            else:
+                gray_image = image.convert('L')
+            
+            # 计算直方图
+            histogram = gray_image.histogram()
+            
+            # 计算加权平均亮度
+            total_pixels = sum(histogram)
+            weighted_sum = sum(i * histogram[i] for i in range(256))
+            avg_brightness = weighted_sum / total_pixels if total_pixels > 0 else 0
+            
+            # 如果平均亮度大于等于128，则认为是浅色图像
+            return avg_brightness >= 128
+        except Exception as e:
+            print(f"判断图像明暗时出错: {e}")
+            # 出错时默认返回True（浅色）
+            return True
+    
+    def _invert_watermark_color(self, watermark_image, target_color='white'):
+        """
+        反转水印颜色
+        :param watermark_image: 原始水印图像
+        :param target_color: 目标颜色 ('white' 或 'black')
+        :return: 调整颜色后的水印图像
+        """
+        try:
+            # 创建一个新的图像
+            if target_color == 'white':
+                # 转换为白色水印
+                if watermark_image.mode == 'RGBA':
+                    # 对于RGBA图像，创建白色背景并保持alpha通道
+                    r, g, b, a = watermark_image.split()
+                    # 创建白色背景
+                    white_layer = Image.new('L', watermark_image.size, 255)
+                    # 合成图像：白色背景 + 原始alpha通道
+                    inverted = Image.merge('RGBA', (white_layer, white_layer, white_layer, a))
+                else:
+                    # 对于RGB图像，创建纯白图像
+                    inverted = Image.new(watermark_image.mode, watermark_image.size, (255, 255, 255))
+            else:
+                # 转换为黑色水印
+                if watermark_image.mode == 'RGBA':
+                    # 对于RGBA图像，创建黑色背景并保持alpha通道
+                    r, g, b, a = watermark_image.split()
+                    # 创建黑色背景
+                    black_layer = Image.new('L', watermark_image.size, 0)
+                    # 合成图像：黑色背景 + 原始alpha通道
+                    inverted = Image.merge('RGBA', (black_layer, black_layer, black_layer, a))
+                else:
+                    # 对于RGB图像，创建纯黑图像
+                    inverted = Image.new(watermark_image.mode, watermark_image.size, (0, 0, 0))
+            
+            return inverted
+        except Exception as e:
+            print(f"反转水印颜色时出错: {e}")
+            return watermark_image
 
 
 class HomeInterface(QWidget):
@@ -317,7 +494,7 @@ class HomeInterface(QWidget):
         """加载配置文件并设置默认值"""
         try:
             # 获取配置文件路径
-            config_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'data', 'config.json')
+            config_path = os.path.join(WatermarkProcessor.get_application_path(), 'data', 'config.json')
 
             # 读取配置文件
             if os.path.exists(config_path):
@@ -370,7 +547,7 @@ class HomeInterface(QWidget):
         """保存配置到文件"""
         try:
             # 获取配置文件路径
-            config_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'data', 'config.json')
+            config_path = os.path.join(WatermarkProcessor.get_application_path(), 'data', 'config.json')
 
             # 读取现有配置或创建新配置
             if os.path.exists(config_path):
@@ -474,7 +651,7 @@ class HomeInterface(QWidget):
         """开始任务"""
         try:
             # 获取配置文件路径
-            config_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'data', 'config.json')
+            config_path = os.path.join(WatermarkProcessor.get_application_path(), 'data', 'config.json')
             
             # 读取配置文件
             if os.path.exists(config_path):
@@ -564,8 +741,11 @@ class HomeInterface(QWidget):
         # 确保线程正确清理
         self.watermark_thread.finished.connect(self.on_thread_finished)
         
+        # 获取要处理的图片列表和显示名称
+        image_paths_with_names = self._get_image_paths_with_display_names()
+
         # 设置处理数据
-        self.watermark_processor.set_data(list(self.add_img_box.added_images), config)
+        self.watermark_processor.set_data(image_paths_with_names, config)
         
         # 设置处理状态
         self._is_processing = True
@@ -671,3 +851,99 @@ class HomeInterface(QWidget):
             duration=3000
         )
 
+    def start_watermark_task(self):
+        """开始水印任务"""
+        # 检查是否正在处理中
+        if self.is_processing:
+            InfoBar.warning(
+                title="正在处理",
+                content="图片正在处理中，请稍后再试",
+                parent=self,
+                duration=2000
+            )
+            return
+            
+        # 检查是否已添加图片
+        if not self.add_img_box.added_images:
+            InfoBar.warning(
+                title="未添加图片",
+                content="请先添加需要处理的图片",
+                parent=self,
+                duration=2000
+            )
+            return
+            
+        # 检查必要配置
+        config = self.get_current_config()
+        if not config.get('Use_logo'):
+            InfoBar.warning(
+                title="未选择水印",
+                content="请先选择水印图片",
+                parent=self,
+                duration=3000
+            )
+            return
+            
+        if not config.get('Out_path'):
+            InfoBar.warning(
+                title="未设置输出路径",
+                content="请先设置输出路径",
+                parent=self,
+                duration=3000
+            )
+            return
+        
+        # 显示开始处理提示
+        self.state_tooltip = StateToolTip("正在处理", "正在处理图片，请稍候...", self)
+        self.state_tooltip.move(self.width() - 200, 60)
+        self.state_tooltip.show()
+        
+        # 清理旧的线程（如果存在）
+        if hasattr(self, 'watermark_thread') and self.watermark_thread:
+            if self.watermark_thread.isRunning():
+                self.watermark_thread.quit()
+                self.watermark_thread.wait()
+            self.watermark_thread.deleteLater()
+            
+        if hasattr(self, 'watermark_processor') and self.watermark_processor:
+            self.watermark_processor.deleteLater()
+        
+        # 创建水印处理线程和处理器
+        self.watermark_thread = QThread()
+        self.watermark_processor = WatermarkProcessor()
+        self.watermark_processor.moveToThread(self.watermark_thread)
+        
+        # 连接信号
+        self.watermark_thread.started.connect(self.watermark_processor.process_images)
+        self.watermark_processor.finished.connect(self.processing_finished)
+        self.watermark_processor.error.connect(self.processing_error)
+        self.watermark_processor.finished.connect(self.watermark_thread.quit)
+        self.watermark_processor.error.connect(self.watermark_thread.quit)
+        # 确保线程正确清理
+        self.watermark_thread.finished.connect(self.on_thread_finished)
+        
+        # 获取要处理的图片列表和显示名称
+        image_paths_with_names = self._get_image_paths_with_display_names()
+        
+        # 设置处理数据
+        self.watermark_processor.set_data(image_paths_with_names, config)
+        
+        # 设置处理状态
+        self._is_processing = True
+        
+        # 启动线程
+        self.watermark_thread.start()
+    
+    def _get_image_paths_with_display_names(self):
+        """获取图片路径和显示名称的映射"""
+        image_paths_with_names = []
+        
+        # 遍历所有添加的图片卡片
+        for i in range(self.add_img_box.main_layout.count()):
+            widget = self.add_img_box.main_layout.itemAt(i).widget()
+            if widget and hasattr(widget, 'image_path'):
+                image_path = widget.image_path
+                display_name = getattr(widget, 'display_filename', os.path.basename(image_path))
+                image_paths_with_names.append((image_path, display_name))
+                
+        return image_paths_with_names

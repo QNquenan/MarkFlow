@@ -4,9 +4,10 @@ from PyQt6.QtWidgets import (QVBoxLayout, QHBoxLayout, QLabel, QWidget,
                              QFileDialog, QApplication, QMenu)
 from qfluentwidgets import (SmoothScrollArea, PushButton, FlowLayout, 
                             FluentIcon as FIF, RoundMenu, Action, MessageBoxBase, 
-                            SubtitleLabel, LineEdit)
+                            SubtitleLabel, LineEdit, SwitchButton, BodyLabel)
 import os
 import json
+import sys
 
 class RenameDialog(MessageBoxBase):
     """重命名对话框"""
@@ -233,6 +234,7 @@ class WatermarkInterface(SmoothScrollArea):
         self.setup_ui()
         self.load_watermarks()
         self.load_selected_watermark()
+        self.load_auto_invert_config()
         
     def _safe_delete_file(self, file_path):
         """安全删除文件"""
@@ -242,9 +244,20 @@ class WatermarkInterface(SmoothScrollArea):
         except Exception as e:
             print(f"删除水印文件时出错: {e}")
     
+    @staticmethod
+    def get_application_path():
+        """获取应用程序所在目录的正确路径"""
+        if getattr(sys, 'frozen', False):
+            # 如果程序是打包后的exe文件
+            application_path = os.path.dirname(sys.executable)
+        else:
+            # 如果是直接运行的Python脚本
+            application_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        return application_path
+    
     def get_watermark_directory(self):
         """获取水印目录路径"""
-        project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        project_root = WatermarkInterface.get_application_path()
         watermark_dir = os.path.join(project_root, 'data', 'watermarks')
         
         os.makedirs(watermark_dir, exist_ok=True)
@@ -276,13 +289,30 @@ class WatermarkInterface(SmoothScrollArea):
         self.title_label.setObjectName("titleLabel")
         main_layout.addWidget(self.title_label)
         
-        button_layout = QHBoxLayout()
-        button_layout.setContentsMargins(0, 0, 0, 0)
+        # 创建包含导入按钮和自动反色开关的水平布局
+        top_layout = QHBoxLayout()
+        top_layout.setContentsMargins(0, 0, 0, 0)
+        
         self.import_button = PushButton(FIF.ADD, '导入水印', self)
         self.import_button.clicked.connect(self.import_watermark)
-        button_layout.addWidget(self.import_button)
-        button_layout.addStretch(1)
-        main_layout.addLayout(button_layout)
+        top_layout.addWidget(self.import_button)
+        top_layout.addStretch(1)
+        
+        # 添加自动反色开关
+        switch_layout = QHBoxLayout()
+        switch_layout.setSpacing(10)
+        switch_layout.setContentsMargins(0, 0, 0, 0)
+        
+        auto_invert_label = BodyLabel('是否启用自动反色（Beta）')
+        self.auto_invert_switch = SwitchButton()
+        self.auto_invert_switch.setToolTip('黑色背景使用最佳')
+        self.auto_invert_switch.checkedChanged.connect(self.on_auto_invert_changed)
+        switch_layout.addWidget(auto_invert_label)
+        switch_layout.addWidget(self.auto_invert_switch)
+        switch_layout.addStretch()
+        
+        top_layout.addLayout(switch_layout)
+        main_layout.addLayout(top_layout)
         
         self.watermark_area = QWidget(self.scroll_widget)
         self.watermark_area.setObjectName("watermarkArea")
@@ -311,7 +341,7 @@ class WatermarkInterface(SmoothScrollArea):
     def save_selected_watermark(self, filename):
         """保存选中的水印到配置文件"""
         try:
-            project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            project_root = WatermarkInterface.get_application_path()
             config_file_path = os.path.join(project_root, 'data', 'config.json')
             
             config_data = {}
@@ -330,7 +360,7 @@ class WatermarkInterface(SmoothScrollArea):
     def load_selected_watermark(self):
         """加载并选中配置文件中指定的水印"""
         try:
-            project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            project_root = WatermarkInterface.get_application_path()
             config_file_path = os.path.join(project_root, 'data', 'config.json')
             
             if os.path.exists(config_file_path):
@@ -428,3 +458,62 @@ class WatermarkInterface(SmoothScrollArea):
                 card = WatermarkCard(image_path, filename, self)
                 card.watermarkSelected.connect(self.handle_watermark_selected)
                 self.watermark_layout.addWidget(card)
+    
+    def on_auto_invert_changed(self, checked):
+        """自动反色开关状态改变时的处理函数"""
+        self.save_auto_invert_config(checked)
+    
+    def save_auto_invert_config(self, enabled):
+        """保存自动反色配置到配置文件"""
+        try:
+            project_root = WatermarkInterface.get_application_path()
+            config_file_path = os.path.join(project_root, 'data', 'config.json')
+            
+            # 如果在打包环境中且data目录不存在，则尝试_internal同级目录
+            if not os.path.exists(os.path.dirname(config_file_path)) and getattr(sys, 'frozen', False):
+                config_file_path = os.path.join(project_root, '_internal', 'data', 'config.json')
+            
+            # 确保data目录存在
+            data_dir = os.path.dirname(config_file_path)
+            if not os.path.exists(data_dir):
+                os.makedirs(data_dir)
+            
+            config_data = {}
+            if os.path.exists(config_file_path):
+                with open(config_file_path, 'r', encoding='utf-8') as f:
+                    config_data = json.load(f)
+            
+            # 统一使用Auto_invert作为键名（注意大小写）
+            config_data['Auto_invert'] = enabled
+            
+            with open(config_file_path, 'w', encoding='utf-8') as f:
+                json.dump(config_data, f, ensure_ascii=False, indent=4)
+                
+        except Exception as e:
+            print(f"保存自动反色配置时出错: {e}")
+    
+    def load_auto_invert_config(self):
+        """加载自动反色配置"""
+        try:
+            project_root = WatermarkInterface.get_application_path()
+            config_file_path = os.path.join(project_root, 'data', 'config.json')
+            
+            # 如果在打包环境中且data目录不存在，则尝试_internal同级目录
+            if not os.path.exists(config_file_path) and getattr(sys, 'frozen', False):
+                config_file_path = os.path.join(project_root, '_internal', 'data', 'config.json')
+            
+            if os.path.exists(config_file_path):
+                with open(config_file_path, 'r', encoding='utf-8') as f:
+                    config_data = json.load(f)
+                
+                # 统一使用Auto_invert作为键名（注意大小写）
+                auto_invert = config_data.get('Auto_invert', False)
+                self.auto_invert_switch.setChecked(auto_invert)
+                print(f"加载自动反色配置: {auto_invert}")  # 调试信息
+            else:
+                # 如果配置文件不存在，设置默认值为False
+                self.auto_invert_switch.setChecked(False)
+                print("配置文件不存在，使用默认值False")  # 调试信息
+        except Exception as e:
+            print(f"加载自动反色配置时出错: {e}")
+            self.auto_invert_switch.setChecked(False)

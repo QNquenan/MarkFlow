@@ -4,6 +4,7 @@
 
 import os
 import json
+import sys
 from pathlib import Path
 
 from PyQt6.QtCore import Qt, pyqtSignal, QFile, QTextStream
@@ -26,9 +27,19 @@ class MarkFlowConfig(QConfig):
 
 markflowConfig = MarkFlowConfig()
 
+def get_application_path():
+    """获取应用程序所在目录的正确路径"""
+    if getattr(sys, 'frozen', False):
+        # 如果程序是打包后的exe文件
+        application_path = os.path.dirname(sys.executable)
+    else:
+        # 如果是直接运行的Python脚本
+        application_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    return application_path
+
 def load_config_from_file():
     """从data/config.json文件加载配置到QConfig中"""
-    current_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    current_dir = get_application_path()
     config_file_path = os.path.join(current_dir, 'data', 'config.json')
     
     if os.path.exists(config_file_path):
@@ -53,7 +64,7 @@ def load_config_from_file():
 
 def save_config_to_file():
     """将QConfig中的配置保存到data/config.json文件中"""
-    current_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    current_dir = get_application_path()
     config_file_path = os.path.join(current_dir, 'data', 'config.json')
     
     try:
