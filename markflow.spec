@@ -9,7 +9,7 @@ a = Analysis(
     datas=[
         ('app/res', 'app/res'),
         ('config', 'config'),
-        # 排除data目录，它将在运行时自动创建
+        # data目录不打包，它将在运行时自动创建
     ],
     hiddenimports=[
         'app.view.home_Interface',
