@@ -47,8 +47,11 @@ def load_config_from_file():
             with open(config_file_path, 'r', encoding='utf-8') as f:
                 config_data = json.load(f)
             
-            if "Out_path" in config_data:
+            if "Out_path" in config_data and config_data["Out_path"]:
                 qconfig.set(markflowConfig.workFolder, config_data["Out_path"])
+            else:
+                # 如果Out_path为空或不存在，使用默认路径
+                qconfig.set(markflowConfig.workFolder, markflowConfig.default_download_path)
                 
             if "Theme_mode" in config_data:
                 theme_map = {
@@ -61,6 +64,8 @@ def load_config_from_file():
                 
         except Exception as e:
             print(f"读取配置文件时出错: {e}")
+            # 出错时使用默认配置
+            qconfig.set(markflowConfig.workFolder, markflowConfig.default_download_path)
 
 def save_config_to_file():
     """将QConfig中的配置保存到data/config.json文件中"""
