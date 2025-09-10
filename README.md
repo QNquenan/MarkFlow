@@ -1,3 +1,5 @@
+<img src="https://socialify.git.ci/QNquenan/MarkFlow/image?description=1&forks=1&issues=1&language=1&name=1&owner=1&pattern=Brick+Wall&pulls=1&stargazers=1&theme=Light" alt="MarkFlow" />
+
 # MarkFlow
 
 一个基于PyQt6和Fluent Design设计的水印添加工具，可以帮助用户批量为图片添加水印。
